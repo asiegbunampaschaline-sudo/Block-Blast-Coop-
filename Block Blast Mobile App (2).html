@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Block Blast Co-Op | Online Multiplayer Puzzle Game</title>
+
+  <!-- Embedded Web App Manifest for PWABuilder (Self-Contained Data URI) -->
+  <link rel="manifest" href='data:application/manifest+json,{"name":"Block Blast Co-Op","short_name":"Block Blast","description":"Play Block Blast Co-Op online with friends or solo directly on your mobile device!","start_url":".","display":"standalone","background_color":"#0f172a","theme_color":"#0f172a","orientation":"portrait","icons":[{"src":"https://img.icons8.com/color/192/000000/rubiks-cube.png","sizes":"192x192","type":"image/png","purpose":"any"},{"src":"https://img.icons8.com/color/512/000000/rubiks-cube.png","sizes":"512x512","type":"image/png","purpose":"any"}]}'>
+
+  <!-- Mobile Native PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Block Blast">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="apple-touch-icon" href="https://img.icons8.com/color/192/000000/rubiks-cube.png">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Outfit', 'sans-serif'],
+          },
+          animation: {
+            'bounce-short': 'bounce 0.5s ease-in-out 1',
+            'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'pop': 'popScale 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+            'clear-flash': 'clearFlash 0.4s ease-out forwards',
+          },
+          keyframes: {
+            popScale: {
+              '0%': { transform: 'scale(0.8)', opacity: '0.5' },
+              '100%': { transform: 'scale(1)', opacity: '1' },
+            },
+            clearFlash: {
+              '0%': { transform: 'scale(1)', filter: 'brightness(2.5) saturate(2)' },
+              '50%': { transform: 'scale(1.08)', filter: 'brightness(3)' },
+              '100%': { transform: 'scale(0)', opacity: '0' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+      background: radial-gradient(circle at 50% 20%, #1e1b4b 0%, #0f172a 60%, #020617 100%);
+      min-height: 100vh;
+      min-height: 100dvh;
+      overscroll-behavior: none;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .grid-cell {
+      transition: background-color 0.15s ease, transform 0.1s ease, border-color 0.15s ease;
+    }
+
+    .ghost-valid {
+      background-color: rgba(52, 211, 153, 0.45) !important;
+      border: 2px solid #10b981 !important;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.6) !important;
+    }
+
+    .ghost-invalid {
+      background-color: rgba(248, 113, 113, 0.35) !important;
+      border: 2px solid #ef4444 !important;
+    }
+
+    /* Block Color Gradients */
+    .block-style-1 {
+      background: linear-gradient(135deg, #f43f5e 0%, #be123c 100%);
+      box-shadow: inset 0 2px 4px rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.4), 0 4px 10px rgba(244, 63, 94, 0.3);
+      border: 1px solid #fda4af;
+    }
+    .block-style-2 {
+      background: linear-gradient(135deg, #06b6d4 0%, #0369a1 100%);
+      box-shadow: inset 0 2px 4px rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.4), 0 4px 10px rgba(6, 182, 212, 0.3);
+      border: 1px solid #67e8f9;
+    }
+    .block-style-3 {
+      background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+      box-shadow: inset 0 2px 4px rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.4), 0 4px 10px rgba(16, 185, 129, 0.3);
+      border: 1px solid #6ee7b7;
+    }
+    .block-style-4 {
+      background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
+      box-shadow: inset 0 2px 4px rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.4), 0 4px 10px rgba(245, 158, 11, 0.3);
+      border: 1px solid #fde047;
+    }
+    .block-style-5 {
+      background: linear-gradient(135deg, #a855f7 0%, #6b21a8 100%);
+      box-shadow: inset 0 2px 4px rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.4), 0 4px 10px rgba(168, 85, 247, 0.3);
+      border: 1px solid #d8b4fe;
+    }
+    .block-style-6 {
+      background: linear-gradient(135deg, #ec4899 0%, #9d174d 100%);
+      box-shadow: inset 0 2px 4px rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.4), 0 4px 10px rgba(236, 72, 153, 0.3);
+      border: 1px solid #fbcfe8;
+    }
+
+    #drag-avatar {
+      pointer-events: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 9999;
+      transform: translate(-50%, -50%) scale(1.1);
+      transition: transform 0.05s ease-out;
+      filter: drop-shadow(0 15px 25px rgba(0,0,0,0.6));
+    }
+
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    #fx-canvas {
+      pointer-events: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 50;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-100 flex flex-col items-center justify-between p-2 sm:p-4 overflow-x-hidden select-none">
+
+  <header class="w-full max-w-lg flex items-center justify-between glass-panel rounded-2xl px-4 py-3 mb-2 shadow-xl relative z-10">
+    <div class="flex items-center gap-2">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+        <i class="fa-solid font-black fa-cubes text-xl text-white"></i>
+      </div>
+      <div>
+        <h1 class="text-lg font-extrabold tracking-wide bg-gradient-to-r from-white via-indigo-200 to-purple-300 bg-clip-text text-transparent leading-tight">
+          BLOCK BLAST
+        </h1>
+        <div class="flex items-center gap-1.5 text-xs text-indigo-300 font-medium">
+          <span id="mode-badge" class="px-2 py-0.5 rounded-full bg-indigo-900/80 border border-indigo-500/30 text-[10px] tracking-wider uppercase">
+            Solo Mode
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Header Action Buttons -->
+    <div class="flex items-center gap-2">
+      <button id="btn-install-app" title="Install App" class="px-2.5 h-10 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 transition flex items-center gap-1.5 text-white font-semibold text-xs shadow-lg shadow-emerald-600/30">
+        <i class="fa-solid fa-download"></i>
+        <span class="hidden sm:inline">Install App</span>
+      </button>
+      <button id="btn-sound" title="Toggle Sound" class="w-10 h-10 rounded-xl glass-panel hover:bg-slate-800/80 active:scale-95 transition flex items-center justify-center text-indigo-300 hover:text-white">
+        <i class="fa-solid fa-volume-high text-lg" id="sound-icon"></i>
+      </button>
+      <button id="btn-multiplayer" title="Online Room" class="px-3 h-10 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active:scale-95 transition flex items-center gap-2 text-white font-semibold text-sm shadow-lg shadow-indigo-600/30">
+        <i class="fa-solid fa-users"></i>
+        <span class="hidden sm:inline">Co-op Room</span>
+      </button>
+      <button id="btn-help" title="How to Play" class="w-10 h-10 rounded-xl glass-panel hover:bg-slate-800/80 active:scale-95 transition flex items-center justify-center text-indigo-300 hover:text-white">
+        <i class="fa-solid fa-circle-question text-lg"></i>
+      </button>
+    </div>
+  </header>
+
+  <section class="w-full max-w-lg grid grid-cols-3 gap-2 mb-3">
+    <!-- Score Card -->
+    <div class="glass-panel rounded-2xl p-2.5 text-center flex flex-col justify-center border-t border-indigo-500/20">
+      <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Score</span>
+      <span id="score-val" class="text-2xl font-black text-amber-400 tracking-tight leading-none my-0.5">0</span>
+    </div>
+
+    <!-- Streak / Combo Card -->
+    <div class="glass-panel rounded-2xl p-2.5 text-center flex flex-col justify-center border-t border-purple-500/20 relative overflow-hidden">
+      <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Streak Combo</span>
+      <div class="flex items-center justify-center gap-1 my-0.5">
+        <i class="fa-solid fa-fire text-orange-500 text-sm animate-pulse"></i>
+        <span id="combo-val" class="text-2xl font-black text-orange-400 tracking-tight leading-none">0</span>
+        <span class="text-xs font-bold text-orange-300">x</span>
+      </div>
+    </div>
+
+    <!-- High Score Card -->
+    <div class="glass-panel rounded-2xl p-2.5 text-center flex flex-col justify-center border-t border-indigo-500/20">
+      <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Best Score</span>
+      <span id="high-score-val" class="text-2xl font-black text-emerald-400 tracking-tight leading-none my-0.5">0</span>
+    </div>
+  </section>
+
+  <!-- Room Info Banner -->
+  <div id="room-info-banner" class="w-full max-w-lg hidden glass-panel rounded-2xl p-2.5 mb-3 flex items-center justify-between bg-indigo-950/50 border-indigo-500/30">
+    <div class="flex items-center gap-2">
+      <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></div>
+      <span class="text-xs font-bold text-slate-200">Room Code: <strong id="room-code-display" class="text-indigo-400 font-mono text-sm tracking-wider">----</strong></span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="btn-copy-room" class="px-2.5 py-1 rounded-lg bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 text-xs font-medium transition flex items-center gap-1 border border-indigo-500/30">
+        <i class="fa-regular fa-copy"></i>
+        <span>Copy Code</span>
+      </button>
+      <button id="btn-leave-room" class="px-2.5 py-1 rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-300 text-xs font-medium transition border border-rose-500/30">
+        Leave
+      </button>
+    </div>
+  </div>
+
+  <main class="relative w-full max-w-lg aspect-square glass-panel rounded-3xl p-3 shadow-2xl flex items-center justify-center border-indigo-500/20 mb-3">
+    <canvas id="fx-canvas"></canvas>
+
+    <!-- 8x8 Grid Container -->
+    <div id="grid-board" class="w-full h-full grid grid-cols-8 grid-rows-8 gap-1.5 bg-slate-950/80 p-2 rounded-2xl border border-slate-800 shadow-inner">
+      <!-- Grid cells injected via JS -->
+    </div>
+  </main>
+
+  <!-- Bottom Piece Tray Container -->
+  <section class="w-full max-w-lg glass-panel rounded-3xl p-3 shadow-xl mb-2 min-h-[120px] flex items-center justify-around gap-2 border-indigo-500/20">
+    <div id="piece-slot-0" class="piece-slot w-1/3 h-24 flex items-center justify-center rounded-2xl bg-slate-900/40 border border-slate-800 hover:border-slate-700 transition cursor-grab active:cursor-grabbing"></div>
+    <div id="piece-slot-1" class="piece-slot w-1/3 h-24 flex items-center justify-center rounded-2xl bg-slate-900/40 border border-slate-800 hover:border-slate-700 transition cursor-grab active:cursor-grabbing"></div>
+    <div id="piece-slot-2" class="piece-slot w-1/3 h-24 flex items-center justify-center rounded-2xl bg-slate-900/40 border border-slate-800 hover:border-slate-700 transition cursor-grab active:cursor-grabbing"></div>
+  </section>
+
+  <!-- Drag Avatar Placeholder -->
+  <div id="drag-avatar" class="hidden"></div>
+
+  <!-- Install Mobile App Modal -->
+  <div id="modal-install" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="glass-panel w-full max-w-md rounded-3xl p-6 shadow-2xl border-emerald-500/30 animate-pop">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-black text-white flex items-center gap-2">
+          <i class="fa-solid fa-mobile-screen-button text-emerald-400"></i> Install Mobile App
+        </h2>
+        <button id="close-install-modal" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+      </div>
+
+      <div class="text-center mb-6">
+        <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center mx-auto mb-3 shadow-xl shadow-indigo-500/30">
+          <i class="fa-solid fa-cubes text-3xl text-white"></i>
+        </div>
+        <h3 class="text-lg font-bold text-white">Block Blast Co-Op</h3>
+        <p class="text-xs text-slate-400 mt-1">Play offline or online co-op directly from your home screen!</p>
+      </div>
+
+      <div id="android-install-box" class="space-y-3">
+        <button id="btn-trigger-pwa-install" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold shadow-lg shadow-emerald-500/30 active:scale-95 transition flex items-center justify-center gap-2 text-base">
+          <i class="fa-solid fa-download"></i> Add to Home Screen
+        </button>
+      </div>
+
+      <div id="ios-install-box" class="space-y-3 text-slate-300 text-xs">
+        <div class="p-3 glass-panel rounded-xl bg-slate-900/60 border-slate-800 flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 font-bold text-sm">1</div>
+          <span>Tap the <strong>Share</strong> button <i class="fa-solid fa-share-from-square text-indigo-400 font-bold"></i> in your browser menu.</span>
+        </div>
+        <div class="p-3 glass-panel rounded-xl bg-slate-900/60 border-slate-800 flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 font-bold text-sm">2</div>
+          <span>Scroll down and tap <strong>"Add to Home Screen"</strong> <i class="fa-regular fa-square-plus text-emerald-400"></i>.</span>
+        </div>
+        <div class="p-3 glass-panel rounded-xl bg-slate-900/60 border-slate-800 flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 font-bold text-sm">3</div>
+          <span>Launch Block Blast anytime directly from your phone's app icon!</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multiplayer Room Modal -->
+  <div id="modal-multiplayer" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="glass-panel w-full max-w-md rounded-3xl p-6 shadow-2xl border-indigo-500/30 animate-pop">
+      <div class="flex justify-between items-center mb-5">
+        <h2 class="text-xl font-black text-white flex items-center gap-2">
+          <i class="fa-solid fa-users text-indigo-400"></i> Co-Op Multiplayer
+        </h2>
+        <button id="close-multiplayer-modal" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+      </div>
+
+      <p class="text-sm text-slate-300 mb-6 leading-relaxed">
+        Play Block Blast collaboratively online! Create a shared room or join a friend to place blocks together on the same grid in real time.
+      </p>
+
+      <div class="space-y-4">
+        <button id="btn-create-room" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:opacity-95 text-white font-bold shadow-lg shadow-indigo-500/30 active:scale-[0.98] transition flex items-center justify-center gap-2 text-base">
+          <i class="fa-solid fa-plus-circle"></i> Create New Room
+        </button>
+
+        <div class="flex items-center gap-3 my-2">
+          <div class="h-px bg-slate-700 flex-1"></div>
+          <span class="text-xs uppercase font-bold text-slate-500">OR JOIN ROOM</span>
+          <div class="h-px bg-slate-700 flex-1"></div>
+        </div>
+
+        <div class="flex gap-2">
+          <input type="text" id="input-room-code" placeholder="Enter 4-digit code" maxlength="6" class="uppercase tracking-widest font-mono text-center flex-1 bg-slate-900/90 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition">
+          <button id="btn-join-room" class="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition active:scale-95 flex items-center gap-1.5 shadow-lg shadow-emerald-600/30">
+            <span>Join</span>
+            <i class="fa-solid fa-arrow-right text-xs"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Over Modal -->
+  <div id="modal-gameover" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="glass-panel w-full max-w-sm rounded-3xl p-6 shadow-2xl text-center border-rose-500/30 animate-pop">
+      <div class="w-16 h-16 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center justify-center mx-auto mb-4 text-3xl">
+        <i class="fa-solid fa-skull"></i>
+      </div>
+      <h2 class="text-2xl font-black text-white mb-1">No Fits Available!</h2>
+      <p class="text-sm text-slate-400 mb-5">There's no space left on the grid for your remaining shapes.</p>
+
+      <div class="glass-panel rounded-2xl p-4 mb-6 bg-slate-900/60 border-slate-800">
+        <div class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Final Score</div>
+        <div id="gameover-score" class="text-4xl font-black text-amber-400 mb-2">0</div>
+        <div id="gameover-new-high" class="hidden inline-block text-xs font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-500/40 px-3 py-1 rounded-full">
+          🎉 NEW HIGH SCORE!
+        </div>
+      </div>
+
+      <button id="btn-restart" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-lg tracking-wide shadow-lg shadow-emerald-500/30 active:scale-95 transition flex items-center justify-center gap-2">
+        <i class="fa-solid fa-rotate-right"></i> Play Again
+      </button>
+    </div>
+  </div>
+
+  <!-- How to Play Modal -->
+  <div id="modal-help" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="glass-panel w-full max-w-md rounded-3xl p-6 shadow-2xl border-indigo-500/30 animate-pop">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-black text-white flex items-center gap-2">
+          <i class="fa-solid fa-circle-info text-indigo-400"></i> How to Play
+        </h2>
+        <button id="close-help-modal" class="text-slate-400 hover:text-white p-1">
+          <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3.5 text-slate-300 text-sm leading-relaxed">
+        <div class="flex items-start gap-3 glass-panel p-3 rounded-xl bg-slate-900/50">
+          <div class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 font-bold">1</div>
+          <p><strong>Drag & Place:</strong> Drag block shapes from the bottom tray onto the 8x8 grid.</p>
+        </div>
+        <div class="flex items-start gap-3 glass-panel p-3 rounded-xl bg-slate-900/50">
+          <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 font-bold">2</div>
+          <p><strong>Clear Lines:</strong> Completely fill horizontal rows or vertical columns to blast blocks away!</p>
+        </div>
+        <div class="flex items-start gap-3 glass-panel p-3 rounded-xl bg-slate-900/50">
+          <div class="w-7 h-7 rounded-lg bg-orange-500/20 text-orange-400 flex items-center justify-center shrink-0 font-bold">3</div>
+          <p><strong>Combo Streaks:</strong> Clear lines on consecutive placements to multiply score gain.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Message Container -->
+  <div id="toast-msg" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 glass-panel bg-slate-900/90 text-white font-semibold text-sm px-4 py-2.5 rounded-full border border-indigo-500/40 shadow-xl hidden transition-all flex items-center gap-2">
+    <i class="fa-solid fa-circle-check text-emerald-400"></i>
+    <span id="toast-text">Message</span>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'block-blast-coop-app';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+      apiKey: "demo-api-key",
+      authDomain: "demo.firebaseapp.com",
+      projectId: "demo-project",
+      storageBucket: "demo.appspot.com",
+      messagingSenderId: "123456789",
+      appId: "1:123456789:web:abcdef"
+    };
+
+    let app, auth, db;
+    let currentUser = null;
+
+    try {
+      app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      db = getFirestore(app);
+
+      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+        signInWithCustomToken(auth, __initial_auth_token).catch(() => signInAnonymously(auth));
+      } else {
+        signInAnonymously(auth);
+      }
+
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          currentUser = user;
+        }
+      });
+    } catch (e) {
+      console.warn("Firebase running in offline mode:", e);
+    }
+
+    window.FB = {
+      db,
+      appId,
+      getUser: () => currentUser,
+      onSnapshot,
+      doc,
+      setDoc,
+      getDoc,
+      updateDoc
+    };
+  </script>
+
+  <script>
+    class SoundFX {
+      constructor() {
+        this.ctx = null;
+        this.enabled = true;
+      }
+
+      vibrate(ms = 15) {
+        if ('vibrate' in navigator && this.enabled) {
+          try { navigator.vibrate(ms); } catch (e) {}
+        }
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playPlace() {
+        this.vibrate(20);
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(260, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(520, this.ctx.currentTime + 0.08);
+
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
+      }
+
+      playClear(linesCleared = 1, combo = 1) {
+        this.vibrate([30, 40, 50]);
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const baseFreq = 400 + combo * 80;
+        const notes = [baseFreq, baseFreq * 1.25, baseFreq * 1.5, baseFreq * 2];
+
+        notes.slice(0, Math.min(linesCleared + 1, 4)).forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.06);
+
+          gain.gain.setValueAtTime(0.25, this.ctx.currentTime + idx * 0.06);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.06 + 0.25);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(this.ctx.currentTime + idx * 0.06);
+          osc.stop(this.ctx.currentTime + idx * 0.06 + 0.25);
+        });
+      }
+
+      playGameOver() {
+        this.vibrate([100, 50, 150]);
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + 0.5);
+
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.5);
+      }
+    }
+
+    const sound = new SoundFX();
+  </script>
+
+  <script>
+    const SHAPES = [
+      { matrix: [[1]], style: 1 },
+      { matrix: [[1, 1]], style: 2 },
+      { matrix: [[1], [1]], style: 2 },
+      { matrix: [[1, 1, 1]], style: 3 },
+      { matrix: [[1], [1], [1]], style: 3 },
+      { matrix: [[1, 1, 1, 1]], style: 4 },
+      { matrix: [[1], [1], [1], [1]], style: 4 },
+      { matrix: [[1, 1, 1, 1, 1]], style: 5 },
+      { matrix: [[1], [1], [1], [1], [1]], style: 5 },
+      { matrix: [[1, 1], [1, 1]], style: 1 },
+      { matrix: [[1, 1, 1], [1, 1, 1], [1, 1, 1]], style: 6 },
+      { matrix: [[1, 0], [1, 1]], style: 4 },
+      { matrix: [[0, 1], [1, 1]], style: 4 },
+      { matrix: [[1, 1], [1, 0]], style: 4 },
+      { matrix: [[1, 1], [0, 1]], style: 4 },
+      { matrix: [[1, 0, 0], [1, 0, 0], [1, 1, 1]], style: 5 },
+      { matrix: [[0, 0, 1], [0, 0, 1], [1, 1, 1]], style: 5 },
+      { matrix: [[1, 1, 1], [0, 1, 0]], style: 3 },
+      { matrix: [[0, 1, 0], [1, 1, 1]], style: 3 },
+      { matrix: [[1, 0], [1, 1], [1, 0]], style: 3 }
+    ];
+
+    const GRID_SIZE = 8;
+    let boardState = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0));
+    let currentPieces = [null, null, null];
+    let score = 0;
+    let streakCombo = 0;
+    let highScore = parseInt(localStorage.getItem('bb_high_score') || '0', 10);
+
+    let activeRoomId = null;
+    let isCoopMode = false;
+    let selectedPieceIndex = null;
+    let roomUnsubscribe = null;
+
+    const fxCanvas = document.getElementById('fx-canvas');
+    const fxCtx = fxCanvas.getContext('2d');
+    let particles = [];
+
+    function resizeCanvas() {
+      const rect = fxCanvas.parentElement.getBoundingClientRect();
+      fxCanvas.width = rect.width;
+      fxCanvas.height = rect.height;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    setTimeout(resizeCanvas, 100);
+
+    function createParticles(x, y, colorStr) {
+      const count = 16;
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 6 + 2;
+        particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          radius: Math.random() * 4 + 2,
+          color: colorStr || '#f59e0b',
+          alpha: 1,
+          decay: Math.random() * 0.03 + 0.02
+        });
+      }
+    }
+
+    function renderParticles() {
+      fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= p.decay;
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+        fxCtx.save();
+        fxCtx.globalAlpha = p.alpha;
+        fxCtx.fillStyle = p.color;
+        fxCtx.beginPath();
+        fxCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        fxCtx.fill();
+        fxCtx.restore();
+      }
+      requestAnimationFrame(renderParticles);
+    }
+    requestAnimationFrame(renderParticles);
+
+    const gridBoardEl = document.getElementById('grid-board');
+    
+    function initBoardDOM() {
+      gridBoardEl.innerHTML = '';
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const cell = document.createElement('div');
+          cell.dataset.row = r;
+          cell.dataset.col = c;
+          cell.className = 'grid-cell rounded-lg bg-slate-900/90 border border-slate-800/80 flex items-center justify-center relative overflow-hidden';
+          gridBoardEl.appendChild(cell);
+        }
+      }
+      document.getElementById('high-score-val').textContent = highScore;
+    }
+
+    function renderBoard() {
+      const cells = gridBoardEl.children;
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const idx = r * GRID_SIZE + c;
+          const cell = cells[idx];
+          const val = boardState[r][c];
+
+          cell.className = 'grid-cell rounded-lg flex items-center justify-center relative overflow-hidden transition-all duration-200 ';
+
+          if (val > 0) {
+            cell.classList.add(`block-style-${val}`, 'scale-100');
+          } else {
+            cell.classList.add('bg-slate-900/90', 'border', 'border-slate-800/80');
+          }
+        }
+      }
+    }
+
+    function getRandomShape() {
+      const shapeObj = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+      return {
+        matrix: shapeObj.matrix.map(row => [...row]),
+        style: shapeObj.style,
+        id: Math.random().toString(36).substr(2, 9)
+      };
+    }
+
+    function refillTrayIfNeeded() {
+      if (currentPieces.every(p => p === null)) {
+        currentPieces = [getRandomShape(), getRandomShape(), getRandomShape()];
+      }
+      renderTray();
+      checkGameOver();
+      syncRoomStateToCloud();
+    }
+
+    function renderTray() {
+      for (let i = 0; i < 3; i++) {
+        const slotEl = document.getElementById(`piece-slot-${i}`);
+        slotEl.innerHTML = '';
+        const piece = currentPieces[i];
+
+        if (!piece) continue;
+
+        const container = document.createElement('div');
+        container.className = 'piece-item flex flex-col gap-1 p-1 transition-transform duration-150 hover:scale-105';
+        if (selectedPieceIndex === i) {
+          container.classList.add('ring-2', 'ring-indigo-400', 'rounded-xl', 'bg-indigo-950/40');
+        }
+
+        const rows = piece.matrix.length;
+        const cols = piece.matrix[0].length;
+
+        for (let r = 0; r < rows; r++) {
+          const rowDiv = document.createElement('div');
+          rowDiv.className = 'flex gap-1 justify-center';
+          for (let c = 0; c < cols; c++) {
+            const block = document.createElement('div');
+            block.className = 'w-4 h-4 sm:w-5 sm:h-5 rounded-md';
+            if (piece.matrix[r][c]) {
+              block.classList.add(`block-style-${piece.style}`);
+            } else {
+              block.classList.add('opacity-0');
+            }
+            rowDiv.appendChild(block);
+          }
+          container.appendChild(rowDiv);
+        }
+
+        slotEl.appendChild(container);
+      }
+    }
+
+    let isDragging = false;
+    let draggedPieceIndex = null;
+    const dragAvatar = document.getElementById('drag-avatar');
+
+    function createDragAvatar(piece) {
+      dragAvatar.innerHTML = '';
+      const container = document.createElement('div');
+      container.className = 'flex flex-col gap-1 p-2 bg-slate-900/80 rounded-2xl border border-indigo-500/40 backdrop-blur-sm shadow-2xl';
+
+      const rows = piece.matrix.length;
+      const cols = piece.matrix[0].length;
+
+      for (let r = 0; r < rows; r++) {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'flex gap-1';
+        for (let c = 0; c < cols; c++) {
+          const block = document.createElement('div');
+          block.className = 'w-8 h-8 rounded-lg';
+          if (piece.matrix[r][c]) {
+            block.classList.add(`block-style-${piece.style}`);
+          } else {
+            block.classList.add('opacity-0');
+          }
+          rowDiv.appendChild(block);
+        }
+        container.appendChild(rowDiv);
+      }
+      dragAvatar.appendChild(container);
+    }
+
+    for (let i = 0; i < 3; i++) {
+      const slot = document.getElementById(`piece-slot-${i}`);
+      
+      const handleStart = (e) => {
+        if (!currentPieces[i]) return;
+        sound.init();
+        
+        if (selectedPieceIndex === i) {
+          selectedPieceIndex = null;
+          renderTray();
+          return;
+        } else {
+          selectedPieceIndex = i;
+          renderTray();
+        }
+
+        isDragging = true;
+        draggedPieceIndex = i;
+        createDragAvatar(currentPieces[i]);
+        dragAvatar.classList.remove('hidden');
+
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        updateDragPosition(clientX, clientY);
+      };
+
+      slot.addEventListener('mousedown', handleStart);
+      slot.addEventListener('touchstart', handleStart, { passive: true });
+    }
+
+    function updateDragPosition(x, y) {
+      dragAvatar.style.left = `${x}px`;
+      dragAvatar.style.top = `${y - 40}px`;
+
+      clearGhostPreviews();
+      if (!isDragging || draggedPieceIndex === null) return;
+
+      const targetCell = getCellFromPoint(x, y - 40);
+      if (targetCell) {
+        const r = parseInt(targetCell.dataset.row, 10);
+        const c = parseInt(targetCell.dataset.col, 10);
+        const piece = currentPieces[draggedPieceIndex];
+        
+        if (piece) {
+          showGhostPreview(r, c, piece);
+        }
+      }
+    }
+
+    function getCellFromPoint(x, y) {
+      const el = document.elementFromPoint(x, y);
+      if (el && el.classList.contains('grid-cell')) return el;
+      if (el && el.parentElement && el.parentElement.classList.contains('grid-cell')) return el.parentElement;
+      return null;
+    }
+
+    window.addEventListener('mousemove', (e) => {
+      if (isDragging) updateDragPosition(e.clientX, e.clientY);
+    });
+
+    window.addEventListener('touchmove', (e) => {
+      if (isDragging && e.touches.length > 0) {
+        updateDragPosition(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }, { passive: true });
+
+    const handleEnd = (e) => {
+      if (!isDragging || draggedPieceIndex === null) return;
+
+      const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+      const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+
+      const targetCell = getCellFromPoint(clientX, clientY - 40);
+      if (targetCell) {
+        const r = parseInt(targetCell.dataset.row, 10);
+        const c = parseInt(targetCell.dataset.col, 10);
+        const piece = currentPieces[draggedPieceIndex];
+
+        if (piece && canPlacePiece(r, c, piece)) {
+          placePiece(r, c, piece, draggedPieceIndex);
+        }
+      }
+
+      isDragging = false;
+      draggedPieceIndex = null;
+      dragAvatar.classList.add('hidden');
+      clearGhostPreviews();
+    };
+
+    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('touchend', handleEnd);
+
+    gridBoardEl.addEventListener('click', (e) => {
+      const cell = e.target.closest('.grid-cell');
+      if (!cell) return;
+
+      if (selectedPieceIndex !== null && currentPieces[selectedPieceIndex]) {
+        const r = parseInt(cell.dataset.row, 10);
+        const c = parseInt(cell.dataset.col, 10);
+        const piece = currentPieces[selectedPieceIndex];
+
+        if (canPlacePiece(r, c, piece)) {
+          placePiece(r, c, piece, selectedPieceIndex);
+          selectedPieceIndex = null;
+          renderTray();
+        }
+      }
+    });
+
+    function canPlacePiece(startRow, startCol, piece) {
+      const rows = piece.matrix.length;
+      const cols = piece.matrix[0].length;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (piece.matrix[r][c]) {
+            const targetR = startRow + r;
+            const targetC = startCol + c;
+
+            if (targetR < 0 || targetR >= GRID_SIZE || targetC < 0 || targetC >= GRID_SIZE) {
+              return false;
+            }
+            if (boardState[targetR][targetC] !== 0) {
+              return false;
+            }
+          }
+        }
+      }
+      return true;
+    }
+
+    function showGhostPreview(startRow, startCol, piece) {
+      const isValid = canPlacePiece(startRow, startCol, piece);
+      const rows = piece.matrix.length;
+      const cols = piece.matrix[0].length;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (piece.matrix[r][c]) {
+            const targetR = startRow + r;
+            const targetC = startCol + c;
+
+            if (targetR >= 0 && targetR < GRID_SIZE && targetC >= 0 && targetC < GRID_SIZE) {
+              const idx = targetR * GRID_SIZE + targetC;
+              const cell = gridBoardEl.children[idx];
+              if (cell) {
+                cell.classList.add(isValid ? 'ghost-valid' : 'ghost-invalid');
+              }
+            }
+          }
+        }
+      }
+    }
+
+    function clearGhostPreviews() {
+      const cells = gridBoardEl.children;
+      for (let i = 0; i < cells.length; i++) {
+        cells[i].classList.remove('ghost-valid', 'ghost-invalid');
+      }
+    }
+
+    function placePiece(startRow, startCol, piece, slotIdx) {
+      const rows = piece.matrix.length;
+      const cols = piece.matrix[0].length;
+      let blocksPlaced = 0;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (piece.matrix[r][c]) {
+            boardState[startRow + r][startCol + c] = piece.style;
+            blocksPlaced++;
+          }
+        }
+      }
+
+      currentPieces[slotIdx] = null;
+      sound.playPlace();
+
+      score += blocksPlaced * 10;
+      const cleared = checkAndClearLines();
+
+      if (cleared.linesCount > 0) {
+        streakCombo++;
+        const comboBonus = Math.pow(cleared.linesCount, 2) * 50 * streakCombo;
+        score += comboBonus;
+        sound.playClear(cleared.linesCount, streakCombo);
+      } else {
+        streakCombo = 0;
+      }
+
+      updateScoreUI();
+      renderBoard();
+      refillTrayIfNeeded();
+      checkGameOver();
+      syncRoomStateToCloud();
+    }
+
+    function checkAndClearLines() {
+      const rowsToClear = [];
+      const colsToClear = [];
+
+      for (let r = 0; r < GRID_SIZE; r++) {
+        if (boardState[r].every(val => val > 0)) {
+          rowsToClear.push(r);
+        }
+      }
+
+      for (let c = 0; c < GRID_SIZE; c++) {
+        let isFull = true;
+        for (let r = 0; r < GRID_SIZE; r++) {
+          if (boardState[r][c] === 0) {
+            isFull = false;
+            break;
+          }
+        }
+        if (isFull) colsToClear.push(c);
+      }
+
+      const totalLines = rowsToClear.length + colsToClear.length;
+
+      if (totalLines > 0) {
+        rowsToClear.forEach(r => {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            const idx = r * GRID_SIZE + c;
+            const cell = gridBoardEl.children[idx];
+            if (cell) {
+              const rect = cell.getBoundingClientRect();
+              const boardRect = fxCanvas.getBoundingClientRect();
+              createParticles(rect.left - boardRect.left + rect.width / 2, rect.top - boardRect.top + rect.height / 2, '#38bdf8');
+            }
+            boardState[r][c] = 0;
+          }
+        });
+
+        colsToClear.forEach(c => {
+          for (let r = 0; r < GRID_SIZE; r++) {
+            const idx = r * GRID_SIZE + c;
+            const cell = gridBoardEl.children[idx];
+            if (cell) {
+              const rect = cell.getBoundingClientRect();
+              const boardRect = fxCanvas.getBoundingClientRect();
+              createParticles(rect.left - boardRect.left + rect.width / 2, rect.top - boardRect.top + rect.height / 2, '#a855f7');
+            }
+            boardState[r][c] = 0;
+          }
+        });
+      }
+
+      return { linesCount: totalLines };
+    }
+
+    function updateScoreUI() {
+      document.getElementById('score-val').textContent = score;
+      document.getElementById('combo-val').textContent = streakCombo;
+
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('bb_high_score', highScore.toString());
+        document.getElementById('high-score-val').textContent = highScore;
+      }
+    }
+
+    function checkGameOver() {
+      let canFitAny = false;
+
+      for (let pIdx = 0; pIdx < 3; pIdx++) {
+        const piece = currentPieces[pIdx];
+        if (!piece) continue;
+
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            if (canPlacePiece(r, c, piece)) {
+              canFitAny = true;
+              break;
+            }
+          }
+          if (canFitAny) break;
+        }
+        if (canFitAny) break;
+      }
+
+      const hasRemainingPieces = currentPieces.some(p => p !== null);
+
+      if (hasRemainingPieces && !canFitAny) {
+        sound.playGameOver();
+        document.getElementById('gameover-score').textContent = score;
+
+        const isNewHigh = score >= highScore && score > 0;
+        document.getElementById('gameover-new-high').classList.toggle('hidden', !isNewHigh);
+        document.getElementById('modal-gameover').classList.remove('hidden');
+      }
+    }
+
+    function resetGame() {
+      boardState = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0));
+      score = 0;
+      streakCombo = 0;
+      currentPieces = [getRandomShape(), getRandomShape(), getRandomShape()];
+      selectedPieceIndex = null;
+      updateScoreUI();
+      renderBoard();
+      renderTray();
+      document.getElementById('modal-gameover').classList.add('hidden');
+      syncRoomStateToCloud();
+    }
+
+    async function createCoopRoom() {
+      if (!window.FB || !window.FB.db) {
+        showToast("Multiplayer requires online connection!");
+        return;
+      }
+
+      const roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+      const fb = window.FB;
+      const roomRef = fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'rooms', roomCode);
+
+      const roomData = {
+        boardState: boardState,
+        currentPieces: currentPieces,
+        score: score,
+        streakCombo: streakCombo,
+        updatedAt: Date.now()
+      };
+
+      try {
+        await fb.setDoc(roomRef, roomData);
+        joinCoopRoom(roomCode);
+      } catch (e) {
+        console.error("Error creating room:", e);
+        showToast("Failed to create room.");
+      }
+    }
+
+    async function joinCoopRoom(roomCode) {
+      if (!window.FB || !window.FB.db) {
+        showToast("Multiplayer offline");
+        return;
+      }
+
+      const fb = window.FB;
+      const roomRef = fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'rooms', roomCode);
+
+      try {
+        const snap = await fb.getDoc(roomRef);
+        if (!snap.exists()) {
+          showToast("Room code not found!");
+          return;
+        }
+
+        activeRoomId = roomCode;
+        isCoopMode = true;
+
+        document.getElementById('mode-badge').textContent = 'Co-Op Online';
+        document.getElementById('room-code-display').textContent = roomCode;
+        document.getElementById('room-info-banner').classList.remove('hidden');
+        document.getElementById('modal-multiplayer').classList.add('hidden');
+
+        showToast(`Joined Co-Op Room ${roomCode}!`);
+
+        if (roomUnsubscribe) roomUnsubscribe();
+
+        roomUnsubscribe = fb.onSnapshot(roomRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            boardState = data.boardState;
+            currentPieces = data.currentPieces;
+            score = data.score;
+            streakCombo = data.streakCombo;
+
+            updateScoreUI();
+            renderBoard();
+            renderTray();
+          }
+        }, (err) => {
+          console.error("Room sync error:", err);
+        });
+
+      } catch (e) {
+        console.error("Error joining room:", e);
+        showToast("Error joining room.");
+      }
+    }
+
+    async function syncRoomStateToCloud() {
+      if (!isCoopMode || !activeRoomId || !window.FB) return;
+      const fb = window.FB;
+      const roomRef = fb.doc(fb.db, 'artifacts', fb.appId, 'public', 'data', 'rooms', activeRoomId);
+
+      try {
+        await fb.updateDoc(roomRef, {
+          boardState: boardState,
+          currentPieces: currentPieces,
+          score: score,
+          streakCombo: streakCombo,
+          updatedAt: Date.now()
+        });
+      } catch (e) {
+        console.warn("Error syncing state:", e);
+      }
+    }
+
+    function leaveCoopRoom() {
+      if (roomUnsubscribe) roomUnsubscribe();
+      activeRoomId = null;
+      isCoopMode = false;
+      document.getElementById('mode-badge').textContent = 'Solo Mode';
+      document.getElementById('room-info-banner').classList.add('hidden');
+      showToast("Left Co-Op Room");
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast-msg');
+      document.getElementById('toast-text').textContent = msg;
+      toast.classList.remove('hidden');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+      }, 2600);
+    }
+
+    document.getElementById('btn-sound').addEventListener('click', () => {
+      sound.enabled = !sound.enabled;
+      document.getElementById('sound-icon').className = sound.enabled ? 'fa-solid fa-volume-high text-lg' : 'fa-solid fa-volume-xmark text-lg text-rose-400';
+      showToast(sound.enabled ? "Sound Enabled" : "Sound Muted");
+    });
+
+    document.getElementById('btn-multiplayer').addEventListener('click', () => {
+      document.getElementById('modal-multiplayer').classList.remove('hidden');
+    });
+
+    document.getElementById('close-multiplayer-modal').addEventListener('click', () => {
+      document.getElementById('modal-multiplayer').classList.add('hidden');
+    });
+
+    document.getElementById('btn-help').addEventListener('click', () => {
+      document.getElementById('modal-help').classList.remove('hidden');
+    });
+
+    document.getElementById('close-help-modal').addEventListener('click', () => {
+      document.getElementById('modal-help').classList.add('hidden');
+    });
+
+    document.getElementById('btn-restart').addEventListener('click', () => {
+      resetGame();
+    });
+
+    document.getElementById('btn-create-room').addEventListener('click', () => {
+      createCoopRoom();
+    });
+
+    document.getElementById('btn-join-room').addEventListener('click', () => {
+      const code = document.getElementById('input-room-code').value.trim();
+      if (code.length > 0) {
+        joinCoopRoom(code);
+      } else {
+        showToast("Enter valid room code");
+      }
+    });
+
+    document.getElementById('btn-copy-room').addEventListener('click', () => {
+      if (activeRoomId) {
+        const dummy = document.createElement('input');
+        document.body.appendChild(dummy);
+        dummy.value = activeRoomId;
+        dummy.select();
+        document.execCommand('copy');
+        document.body.removeChild(dummy);
+        showToast(`Copied room code: ${activeRoomId}`);
+      }
+    });
+
+    document.getElementById('btn-leave-room').addEventListener('click', () => {
+      leaveCoopRoom();
+    });
+
+    window.onload = () => {
+      initBoardDOM();
+      currentPieces = [getRandomShape(), getRandomShape(), getRandomShape()];
+      renderBoard();
+      renderTray();
+      updateScoreUI();
+    };
+  </script>
+</body>
+</html>
